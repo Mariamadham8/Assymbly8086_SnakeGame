@@ -2,21 +2,7 @@
 .STACK 100h
 
 .DATA
-    score DW 0
-    is_game_over DB 0
-
-    ; 8 = up, 4 = down, 2 = left, 1 = right
-    snake_direction DB 0
-
-    snake_head_x DB 0
-    snake_head_y DB 0
-    snake_head_previous_x DB 0
-    snake_head_previous_y DB 0
-    snake_tail_x DB 0
-    snake_tail_y DB 0
-    snake_tail_previous_x DB 0
-    snake_tail_previous_y DB 0
-
+   
     buffer DB 2000 DUP(?)
 
     title_  DW 0342, 0341, 0340, 0339, 0338, 0337, 0336, 0335, 0415, 0495
@@ -38,20 +24,113 @@
     text_2 DB "WRITTEN IN ASSEMBLY 8086 LANGUAGE :)", '$'
     text_3 DB "PRESS ANY KEY TO START", '$'
     text_4 DB "                      ", '$'
+    
+    x1 dw ?           ; Variable to hold the x-coordinate of the first point of the snake
+     x2 dw  ?           ; Variable to hold the x-coordinate of the second point of the snake
+     y1 dw ?            ; Variable to hold the y-coordinate of the first point of the snake
+     y2 dw ?            ; Variable to hold the y-coordinate of the second point of the snake
+   colorsnake db 14                                ;variable hold the color of snake
+    ColorsOptions db 14,6,10,2,11,3,9,1,13,5 
+                       ; Color options for the palette
+   flagsc db ?          ; Flag to indicate the end of the ColorsOptions array
+
+    instruc_design db 'Pick A Color $' 
+  Press_Enter db 'Press Enter To Start Playing$'
+  Example db 'Example$'  
+
 
 .CODE
+
+; smoe macros definition
+;----------------------------------------------->
+set_cursor_pos MACRO row, column
+    PUSH AX
+    PUSH BX
+    PUSH DX
+    XOR BH, BH
+    MOV AH, 02h
+    MOV DH, row
+    MOV DL, column
+    INT 10h
+    POP DX
+    POP BX
+    POP AX
+ENDM
+;-------------------------
+
+; Macro for printing a string to the screen
+print_str MACRO string
+    PUSH AX
+    PUSH DX
+    LEA DX, string
+    MOV AH, 09h
+    INT 21h
+    POP DX
+    POP AX
+ENDM
+;----------------------------
+; Macro to print a node of the snake using a 4-tuple position and color
+print_snake_node MACRO sX, sY, eX, eY, color
+    LOCAL line_start, column_start
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    XOR BH, BH          ; Page number = 0
+    MOV AH, 0Ch         ; Function: Write pixel
+    MOV CX, sX          ; Start X-coordinate
+    MOV DX, sY          ; Start Y-coordinate
+    MOV AL, color       ; Color value
+
+line_start:
+    INT 10h             ; Draw a pixel
+    INC CX              ; Move to the next pixel in X
+    CMP CX, eX          ; Check if reached end X
+    JNE line_start
+
+    INC DX              ; Move to the next Y line
+    MOV CX, sX          ; Reset X to start of line
+    CMP DX, eY          ; Check if reached end Y
+    JNE line_start
+
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+ENDM
+;-----------------------
+
+;----------------------------------------------------------->
 MAIN PROC
     MOV AX, @DATA         ; Set up data segment
     MOV DS, AX
     MOV ES, AX
+    
+     ; Initialize mouse driver
+    MOV AX, 0000h         ; Function 0: Initialize mouse
+    INT 33h
+    OR AX, AX             ; Check if mouse driver is installed
+    JZ no_mouse           ; Jump if no mouse driver is detected
 
     CALL hide_cursor      ; Hide the cursor
     CALL show_title       ; Show the title screen
-    CALL start_playing    ; Start the game logic
-  
-    CALL exit_process     ; Exit the program
-MAIN ENDP
+    CALL setSnakeColor    ; Show the color selection screen
+    ; Clear screen
+    MOV AH, 0
+    MOV AL, 3             ; Video mode 3 (text mode)
+    INT 10h
 
+    CALL start_playing    ; Start the game logic
+    CALL exit_process     ; Exit the program
+
+no_mouse:
+    ; Print error message and exit if no mouse is detected
+    MOV AH, 09h
+    INT 21h
+    JMP exit_process
+MAIN ENDP
+;---------------------------------------------------
 start_playing PROC
     ; Game logic can be implemented here
     MOV SI, OFFSET text_4
@@ -59,6 +138,7 @@ start_playing PROC
     CALL buffer_print_string
     RET
 start_playing ENDP
+;-----------------------------------------------------
 
 show_title PROC
     ; Clear the screen using BIOS interrupt
@@ -126,6 +206,7 @@ next_clear:
     RET
 buffer_clear ENDP
 
+
 buffer_render PROC
     ; Render buffer to screen
     MOV AX, 0B800h        ; Video memory segment
@@ -177,12 +258,95 @@ wait_sleep:
     JB wait_sleep
     RET
 sleep ENDP
+;----------------------------------------------->
 
-exit_process PROC
+setSnakeColor proc
+            mov ax,13h
+            int 10h
+            set_cursor_pos 4,2
+            print_str Example
+            set_cursor_pos 4,107
+            print_str instruc_design
+            set_cursor_pos 21,45
+            print_str Press_Enter
+        ;Draw Snake for showing examples for user
+            mov [x1],40
+            mov [x2],45
+            mov [y1],60 
+            mov [y2],140 
+            print_snake_node [x1],[y1],[x2],[y2],[colorsnake]
+        ;Drawing Palette of colors to user
+            mov si,offset ColorsOptions
+            mov [y1],50
+            mov [y2],60
+            mov [x1],260
+            mov [x2],270
+            DrawingPalette:
+                print_snake_node [x1],[y1],[x2],[y2],[si]
+                inc si
+                add [y1],11
+                add [y2],11
+                cmp si,offset flagsc
+                jne DrawingPalette
+                
+            tempMouse:
+                mov ax,1
+                int 33h
+                WaitForKeyPressed3:
+                    in al,64h       ;check keyboard status
+                    cmp al,10b
+                    je WaitForKeyPressed3
+                    ;
+                    in al,60h       ;al hold the scan code  
+                    cmp al,1Ch
+                    je exitsetsnake
+            ;Loop until mouse click
+            MouseLp:
+                mov ax,3h ;getting mouse status
+                int 33h
+                and bx,01h      ;check if left mouse clicked
+                jz tempMouse ;00 in right bits means that no click
+                   
+                ;hide mouse
+                mov ax,02h
+                int 33h
+                    
+                shr cx,1        ;adjust cx to range 0-319 (before it was 639)
+                sub dx,1        ;move back a little
+                mov ah,0Dh      ;get Pixel Color
+                int 10h
+                cmp al,0        ;if it is not in the palette, so dont paint the snake
+                je jmpmuose
+                cmp al,15
+                je jmpmuose
+            ;Drawing New Snake with new color that have been chosen
+                mov [colorsnake],al
+                mov [x1],40
+                mov [x2],45
+                mov [y1],60 
+                mov [y2],140 
+                print_snake_node [x1],[y1],[x2],[y2],[colorsnake]
+            jmpmuose:
+                jmp MouseLp
+   
+     exitsetsnake:
+    ; Clear the screen after a key is pressed
+    MOV AH, 0                  ; Function 0: Clear screen and reset cursor
+    MOV AL, 3                  ; Video mode 3 (80x25 text mode)
+    INT 10h
+       endp setSnakeColor
+;------------------------------------------------------------------------->
+     ;sound proced
+
+;------------------------------------------------------------------------->
+       
+     exit_process PROC
     ; Exit program
     MOV AH, 4Ch
     INT 21h
     RET
 exit_process ENDP
+;-------------------------------------------------------------------------->
+
 
 END MAIN
