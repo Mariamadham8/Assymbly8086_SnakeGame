@@ -4,7 +4,7 @@
 - **Audio**  
   The audio system was inspired by the following repository:  
   [Assembly8086IMFPlayer](https://github.com/leonardo-ono/Assembly8086IMFPlayer/blob/main/imfplay.asm)  
-  We integrated this with some fixes to make it compatible with our code.
+  We dont integrate this due some fixes to make it compatible with our code.
 
 - **Game Development**  
   The game development was based on this tutorial:  
