@@ -10,3 +10,7 @@
   The game development was based on this tutorial:  
   [8086 Assembly Game Development](https://www.youtube.com/watch?v=5v1Pz0bzO1g)  
   We added **more features** and resolved **compatibility issues** between assemblers **TASM** and **NASM**.
+### Contributors  
+- Mariam Adham 
+- Mariam Ahmad  
+- Mariam Yasser
