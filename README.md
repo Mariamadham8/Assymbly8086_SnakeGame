@@ -12,5 +12,5 @@
   We added **more features** and resolved **compatibility issues** between assemblers **TASM** and **NASM**.
 ### Contributors  
 - Mariam Adham 
-- Mariam Ahmad  
+- Mariam Ahmed  
 - Mariam Yasser
